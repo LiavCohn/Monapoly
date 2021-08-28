@@ -1,0 +1,685 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="JSON.js"></script>
+    <link href="myStyle.css" rel="stylesheet" />
+    <title>Monopoly</title>
+
+    <script>
+        var platform;
+        var player1 = monopoly.players[0];
+        var player2 = monopoly.players[1];
+        var $player1 = $("<div>").attr("id", "player1");
+        var $player2 = $("<div>").attr("id", "player2");
+        var cube1 = 4;
+        var cube2 = 6;
+        var turn = 0;
+        var cashInput = 0;
+        var cards_bought_player1 = [];
+        var cards_bought_player2 = [];
+        var islocalStorageEmpty = localStorage.length === 0
+        var snackbar = $("<div>").attr("id", "snackbar");
+        $(document).ready(function () {
+            $("body").append(snackbar);
+            //result of the player's answer
+            let res;
+            if (!islocalStorageEmpty)
+            {
+                res=confirm("Do you want to continue the last game?")
+            }
+            if (islocalStorageEmpty|| !res)
+            {
+                localStorage.clear(); // if the player chose to restart the game, we make sure that the storage is empty
+                $("#choosePlatform").removeAttr("hidden")
+                $("#steamButton").click(initSteam)
+                $("#mcdonaldButton").click(initMC)
+            }
+            else
+            {
+                platform = JSON.parse(localStorage["platform"]);
+                //in case he didnt choos start money
+                if (localStorage["player1"] == null)
+                {
+                    initCash();
+                }
+                else
+                {
+                    $("#choosePlatform").remove();
+                    player1 = JSON.parse(localStorage["player1"]);
+                    player2 = JSON.parse(localStorage["player2"]);
+                    //in case the exit from page before he throw the dice
+                    if (localStorage["turn"] != null) {
+                        turn = JSON.parse(localStorage["turn"]);
+                        cube1 = JSON.parse(localStorage["cube1"]);
+                        cube2 = JSON.parse(localStorage["cube2"]);
+                        putDice1to6($("#c1"), cube1);
+                        putDice1to6($("#c2"), cube2);
+                    }
+                    initGame();
+                    //show the turn of the current player
+                    if (localStorage["turnPlayerText"] != null)
+                        $("#turns").html(JSON.parse(localStorage["turnPlayerText"]));
+
+                    if (localStorage["cards_bought_player1"] != null)
+                    {
+                        cards_bought_player1 = JSON.parse(localStorage["cards_bought_player1"])
+                        //in case he didnt bought any card
+                        if (cards_bought_player1.length > 0)
+                            restoreBuy(player1, cards_bought_player1);
+
+                        cards_bought_player2 = JSON.parse(localStorage["cards_bought_player2"])
+                        //in case he didnt bought any card
+                        if (cards_bought_player2.length > 0)
+                            restoreBuy(player2, cards_bought_player2);
+                    }
+                }
+            }
+            $("#start").click(initGame);
+            $(document).on("click", "#quit", showWinner)
+            $(document).on("click", ".card button", buy)
+        });
+
+        function initSteam() {
+            //initialize platform.
+            platform = monopoly.platforms[0];
+            localStorage["platform"] = JSON.stringify(platform);
+            //call for div to show cash amoute choose.
+            initCash();
+        }
+        function initMC() {
+            //initialize platform
+            platform = monopoly.platforms[1];
+            localStorage["platform"] = JSON.stringify(platform);
+            //call for div to show cash amoute choose.
+            initCash();
+        }
+        function initCash() {
+            //remove the div that shows the different platforms
+            $("#choosePlatform").remove();
+            //display the div that where the user need to choose the amount of money to play
+            $("#hideBeforePlatform").fadeIn(700).removeAttr('hidden');
+        }
+        function showSnackbar(str) {
+            snackbar.html(str);
+            snackbar.addClass("show");
+            setTimeout(function () { snackbar.removeAttr("class"); }, 1500);
+        }
+        function initGame() {
+            //save cush start amount and update the worth and money of each player.
+            if (localStorage["player1"] == null) {
+                cashInput = $("#inputCash").val();
+                player1.money = cashInput;
+                player2.money = cashInput;
+                player1.worth = cashInput;
+                player2.worth = cashInput;
+                player1.userName = $("#player1_name").val();
+                player2.userName = $("#player2_name").val();
+            }
+            //remove the cush amount div choose.
+            $("#hideBeforePlatform").fadeOut(700).remove();
+            //show gameboard!
+            $("#hideBoforeStart").fadeIn(700).removeAttr('hidden');
+            //create the card of the game by platform the user chose.
+            for (var i = 0; i < platform.cards.length; i++) {
+                let obj = platform.cards[i]
+                if (i == 0) {
+                    $colDiv = $("<div>").addClass("col card unique").attr("id", i);
+                    $img = $("<img>").attr("src", obj.img_src);
+                    $colDiv.append($img)
+                    $("#bottom").prepend($colDiv);
+                    continue;
+                }
+                else if (i == 2) {
+                    $colDiv = $("<div>").addClass("col card unique").attr("id", i);
+                    $img = $("<img>").attr("src", obj.img_src);
+                    $colDiv.append($img)
+                    $("#bottom").prepend($colDiv);
+                    continue;
+                }
+                else if (i == 6) {
+                    $colDiv = $("<div>").addClass("col card unique").attr("id", i);
+                    $img = $("<img>").attr("src", obj.img_src);
+                    $colDiv.append($img)
+                    $("#bottom").prepend($colDiv);
+                    continue;
+                }
+                else if (i == 12) {
+                    $colDiv = $("<div>").addClass("col card unique").attr("id", i);
+                    $img = $("<img>").attr("src", obj.img_src);
+                    $colDiv.append($img)
+                    $("#top").append($colDiv);
+                    continue;
+                }
+                else if (i == 18) {
+                    $colDiv = $("<div>").addClass("col card unique").attr("id", i);
+                    $img = $("<img>").attr("src", obj.img_src);
+                    $colDiv.append($img)
+                    $("#top").append($colDiv);
+                    continue;
+                }
+                else
+                    $colDiv = $("<div>").addClass("col card").attr("id", i);
+                $h5 = $("<h5>").html(obj.genre).css("background-color", obj.color);
+                $img = $("<img>").attr("src", obj.img_src);
+                $card_body = $("<div>").addClass("card-body");
+                $p_name = $("<p>").addClass("card-title").html(obj.name);
+                $btn_cost = $("<button>").attr({ "id": "btn" + i }).html(obj.cost + '$');
+                $card_body.append($p_name, $btn_cost);
+                $colDiv.append($h5, $img, $card_body);
+                //7 card at the bottom.
+                if (i < 7)
+                    $("#bottom").prepend($colDiv);
+                //5 cards at the left.
+                else if (i < 12) {
+                    $row = $("<div>").addClass("row").append($colDiv);
+                    $("#left").prepend($row);
+                }
+                //7 card at the top.
+                else if (i < 7 + 5 + 7)
+                    $("#top").append($colDiv);
+                //5 cards at the right.
+                else {
+                    $row = $("<div>").addClass("row").append($colDiv);
+                    $("#right").append($row);
+                }
+            }
+            //add pic to the board game for a nice look.
+            $('#gameboard').css('background-image', 'url(' + platform.logo_src + ')');
+            //call to init the cubes.
+            initCubesDiv(platform)
+            //call to init the player.
+            initPlayer();
+            //call init Scored
+            initScoredGame([player1, player2]);
+            if (localStorage["player1"] == null) {
+                localStorage["player1"] = JSON.stringify(player1);
+                localStorage["player2"] = JSON.stringify(player2);
+            }
+        }
+        function initCubesDiv(platform) {
+            //create the cubes:
+            $h5 = $("<h5>").html('Throw the Dices').css({ "font-size": "32px" });
+            if (platform.name == "steam") {
+                //adjusting for platform steam
+                $h5.css("color", "white");
+                $('#turns').css("color", "white");
+            }
+            //call a function to show the cubes:sending id and number of cube.
+            putDice1to6($("#c1"), cube1);
+            putDice1to6($("#c2"), cube2);
+            //add the text to be the first element in the div of the cubes.
+            $("#cubes").prepend($h5);
+            //adding the attr to #cubes when it click he throw the dices
+            $("#cubes").attr("onclick", "throwDices()");
+
+        }
+        function putDice1to6(id, num) {
+            //show the cubes!:
+            //first have to remove the last one cubes.
+            id.empty();
+
+            //now we create the cubes by adding class that have been ready
+            //in first place at the css.
+            $cube = $('<div>');
+            switch (num) {
+                case 1:
+                    $cube.addClass("dice first-face");
+                    break;
+                case 2:
+                    $cube.addClass("dice second-face");
+                    break;
+                case 3:
+                    $cube.addClass("dice third-face");
+                    break;
+                case 4:
+                    $cube.addClass("dice fourth-face");
+                    break;
+                case 5:
+                    $cube.addClass("dice fifth-face");
+                    break;
+                case 6:
+                    $cube.addClass("dice fourth-face");//six use the class of fourth
+                    break;
+            }
+            //adding the num of black dot to the cubes.
+            if (num < 4) {
+                for (var i = 0; i < num; i++) {
+                    $cube.append($('<span>').addClass('dot'))
+                }
+            }
+            else if (num == 5) {
+                for (var i = 0; i < 3; i++) {
+                    $col = $("<div>").addClass("column")
+                    for (var j = 0; j < 2; j++) {
+                        if (i == 1 && j == 1) {
+                            break;
+                        }
+                        $col.append($('<span>').addClass('dot'))
+                    }
+                    $cube.append($col)
+                }
+            }
+            else {
+                for (var i = 0; i < 2; i++) {
+                    $col = $("<div>").addClass("column")
+                    for (var j = 0; j < 3; j++) {
+                        if (num == 4 && j == 2) {
+                            break;
+                        }
+                        $col.append($('<span>').addClass('dot'))
+                    }
+                    $cube.append($col)
+                }
+            }
+            $(id).append($cube)
+        }
+        function initPlayer() {
+            //adding players to start! :)
+            if (islocalStorageEmpty)
+                $("#0").append($player1, $player2);
+
+            else  // if local storage is not empty
+            {
+                //put the player in the last location they have been set.
+                $("#" + player1.location).append($player1)
+                $("#" + player2.location).append($player2)
+            }
+
+        }
+        function movePlayer(num, id, $player, jsonPlayer) {
+            //to find the current card id of the player
+            current = parseInt($(id).parent().attr('id'));
+            //loop in interval of 600 milsconds
+            let x = 0;
+            let interval = setInterval(function ()
+            {
+                //if x is smaller of then the sum of cubes the
+                //is still on the moves if x=sum of cubrs he arrived to the target
+                if (x >= cube1 + cube2)
+                {
+                    //if the player at jail !
+                    if (jsonPlayer.timeJail > 0)
+                    {
+                        //get free from jail if he throw double or finish 3 truns
+                        if (cube1 == cube2 || jsonPlayer.timeJail >= 3) {
+                            jsonPlayer.timeJail = 0;
+                            showSnackbar("Congrats " + jsonPlayer.userName + "! You are free to go next turn!")
+                        }
+                        //if didnt finish 3 turn count++
+                        else
+                        {
+                            showSnackbar(jsonPlayer.userName + " need to wait another " + (3 - parseInt(jsonPlayer.timeJail))+" turns");
+                            jsonPlayer.timeJail++;
+
+                        }
+                    }
+                    else if (jsonPlayer.location==2)
+                    {
+                        
+                        let percentage = jsonPlayer.money * 0.1;
+                        percentage = percentage.toFixed(1);
+                        showSnackbar(jsonPlayer.userName + " paid " + percentage+" to the bank!")
+                        jsonPlayer.money -= percentage;
+                        jsonPlayer.worth -= percentage;
+                        //updating the player scord board
+                        $("#money" + jsonPlayer.name).html(jsonPlayer.money + "$");
+                        $("#worth" + jsonPlayer.name).html("worth: " + jsonPlayer.worth + "$");
+                                               
+                    }
+
+                    //player set on "go to jail card".
+                    else if (current == 18)
+                    {
+                        showSnackbar(jsonPlayer.userName+" went to jail!")
+                        goToJail(jsonPlayer, $player)
+                    }
+                    //if player set on free parking card
+                    else if (jsonPlayer.location == 12)
+                    {
+                        showSnackbar(jsonPlayer.userName+" just lost a turn!")
+                        jsonPlayer.freeParking = true;
+                    }
+
+                    //check if the other player bought this card
+                    else
+                    {
+                        otherPlayerCards = cards_bought_player1;
+                        otherPlayer = player1
+                        if (jsonPlayer == player1) {
+                            otherPlayerCards = cards_bought_player2;
+                            otherPlayer = player2;
+                        }
+                        if (otherPlayerCards.includes("btn" + current))
+                        {
+                            //if do, pay !
+                            payForVisit(jsonPlayer, otherPlayer);
+                        }
+                    }
+
+                    //return the click button to #cubes
+                    $("#cubes").attr("onclick", "throwDices()");
+                    localStorage["player1"] = JSON.stringify(player1);
+                    localStorage["player2"] = JSON.stringify(player2);
+                    localStorage["turn"] = JSON.stringify(turn);
+                    localStorage["cube1"] = JSON.stringify(cube1);
+                    localStorage["cube2"] = JSON.stringify(cube2);
+                    return clearInterval(interval);
+                }
+                //advancing the player card by 1 for each interval and not in jail
+                if (jsonPlayer.timeJail == 0) {
+                    current = (current + 1) % 24;
+                    $('#' + current).append($player);
+                    jsonPlayer.location = current;
+                }
+                else {
+                    x = 100;
+                } // end loop
+
+                //player get 200$ for passing on the starting point
+                if (current == 0)
+                {
+                    showSnackbar(jsonPlayer.userName + " earned 200$");
+                    //updating the player state
+                    jsonPlayer.money = parseFloat(jsonPlayer.money) + 200;
+                    jsonPlayer.worth = parseFloat(jsonPlayer.worth) + 200;
+                    //updating the player scord board
+                    $("#money" + jsonPlayer.name).html(jsonPlayer.money + "$");
+                    $("#worth" + jsonPlayer.name).html("worth: " + jsonPlayer.worth + "$");
+                }
+                //advancing the loop
+                x++;
+            }, 600);
+        }
+
+        function throwDices() {
+            //cancel click on the cubes untill player finish moving
+            $("#cubes").removeAttr("onclick");
+            let x = 0;
+            //an interval that will display a change in the dice's throw. this will repeat 3 times.
+            let interval = setInterval(function () {
+                if (x >= 3) {
+                    //if the turn is even=player1 turn, when odd is player2 turn
+                    if (turn % 2 == 0) {
+                        $("#turns").html("Turn " + player1.userName);
+                        let res1 = cube1 + cube2 + player1.location;
+                        movePlayer(cube1 + cube2, '#player1', $player1, player1);
+                    }
+                    else {
+                        $("#turns").html("Turn " + player2.userName);
+                        let res2 = cube1 + cube2 + player2.location;
+                        movePlayer(cube1 + cube2, '#player2', $player2, player2);
+                    }
+                    localStorage["turnPlayerText"] = JSON.stringify($("#turns").text());
+
+                    //if theres double, a player has an extra turn
+                    if (cube1 != cube2) {
+                        turn++;
+                    }
+                    return clearInterval(interval);
+                }
+                //find whoes player throw the dice
+                let playerTurn
+                if (turn % 2 == 0) {
+                    playerTurn = player1;
+                    SecondPlayer = player2
+                }
+                else
+                {
+                    playerTurn = player2;
+                    SecondPlayer = player1
+                };
+                //check if he in free parking
+                if (playerTurn.freeParking)
+                {
+                    playerTurn.freeParking = false;
+                    turn++;
+                    playerTurn = SecondPlayer;
+                }
+                //create random numbers between 1-6
+                cube1 = Math.floor((Math.random() * 6) + 1);
+                cube2 = Math.floor((Math.random() * 6) + 1);
+                putDice1to6($("#c2"), cube2);
+                putDice1to6($("#c1"), cube1);
+                x++;
+            }, 250);
+
+        }
+
+        function initScoredGame(players) {
+            //adding to row all the players in the json monopol.
+            $row = $("<div>").addClass("row");
+            for (var i = 0; i < players.length; i++) {
+                player = players[i];
+                $col = $("<div>").addClass("col card").attr("id", "player" + (i + 1) + "Score");
+                $h5 = $("<h5>").html(player.userName).css("background-color", player.color);
+                $img = $("<img>").attr("src", player.img_src);
+                $card_body = $("<div>").addClass("card-body");
+                $p_name = $("<p>").addClass("card-title").html("worth : " + player.worth + "$").attr("id", "worthplayer" + (i + 1));
+                $p_cost = $("<p>").addClass("card-text").html(player.money + '$').attr("id", "moneyplayer" + (i + 1));
+                $card_body.append($p_name, $p_cost);
+                $col.append($h5, $img, $card_body);
+                $row.append($col);
+            }
+            //create button to end game.
+            quit_btn = $("<button>End Game</button>").addClass("btn btn-warning btn-rounded btn-lg").attr("id", "quit")
+            //adding to scoreboard the players and the button.
+            $('#scoreboard').append(quit_btn, $row);
+        }
+        //continue on part b
+        function showWinner() {
+            cash1 = player1.worth;
+            cash2 = player2.worth;
+            //removing the game board
+            $("#hideBoforeStart").fadeOut(500).remove();
+            //showing the end game div
+            $("#end_game").removeAttr("hidden");
+
+            $winner_col = $("<div>").attr("class", "col")
+            winner_title = "";
+            img = ""
+            if (cash1 == cash2)
+            {
+                img = $("<img src='images/tie.png'/>")
+                winner_title = $("<h1>").html("It's a Tie!").attr("class", "title")
+            }
+
+            else if (cash1 > cash2)
+            {
+                img = $("<img src='images/player1_won.png'/>")
+                winner_title = $("<h1>").html(player1.userName + " Is The Winner!").attr("class", "title");
+            }
+
+            else
+            {
+                winner_title = $("<h1>").html(player2.userName +" Is The Winner!").attr("class", "title");
+                img = $("<img src='images/player2_won.png'/>")
+            }
+
+            $winner_col.append(winner_title, img);
+            $("#end_game").append($winner_col)
+            localStorage.clear();
+        }
+        function buy() {
+            button = $(this);
+            if (cards_bought_player1.includes(button.attr("id")))
+            {
+                showSnackbar(player1.userName + " already bought it !")
+                return;
+            }
+            else if (cards_bought_player2.includes(button.attr("id")))
+            {
+                showSnackbar(player2.userName + " already bought it !")
+                return;
+            }
+            //player 1 turn .
+            whichPlayer = player1;
+            houseImg = $("<img src='images/red_house.png'/>").attr("id", "red_house");
+            cards_bought = cards_bought_player1;
+            //the cases that is player 2 turn.
+            if ((turn % 2 == 0 && cube1 != cube2) || (turn % 2 == 1 && cube1 == cube2)) {
+                whichPlayer = player2;
+                houseImg = $("<img src='images/blue_house.png'/>").attr("id", "blue_house")
+                cards_bought = cards_bought_player2;
+            }
+
+
+            //gets values
+            cardBody = button.parent();
+            card = cardBody.parent();
+            $h5 = card.clone().children("h5");
+            $p_name = cardBody.clone().children("p");
+            color = $h5.css("background-color");
+            price = parseInt(button.text().slice(0, -1));
+            $p_name.css("background-color", color);
+            if (whichPlayer.money < price && "btn" + whichPlayer.location == button.attr("id"))
+            {
+                showSnackbar(whichPlayer.userName+" don't have enought money :(")
+            }
+
+            else if ("btn" + whichPlayer.location == button.attr("id") && whichPlayer.money >= price ) {
+                whichPlayer.money -= price;
+                whichPlayer.sum_of_purchases += price;
+                whichPlayer.worth = whichPlayer.money + (whichPlayer.sum_of_purchases / 2);
+                whichPlayer.purchases.push($p_name);
+                $("#money" + whichPlayer.name).html(whichPlayer.money + "$");
+                $("#worth" + whichPlayer.name).html("worth: " + whichPlayer.worth + "$");
+                $("#" + whichPlayer.name + "Score").append(whichPlayer.purchases)
+                //Save to remeber that this card have been bought
+                cards_bought.push(button.attr("id"));
+                $("#" + whichPlayer.location).append(houseImg)
+            }
+
+            localStorage["player1"] = JSON.stringify(player1);
+            localStorage["player2"] = JSON.stringify(player2);
+            localStorage["cards_bought_player1"] = JSON.stringify(cards_bought_player1);
+            localStorage["cards_bought_player2"] = JSON.stringify(cards_bought_player2);
+        }
+        function restoreBuy(player, cards_bought) {//המטרה שלה להחזיר את הצבעים והבתים של המשחק הקודם
+            for (var i = 0; i < cards_bought.length; i++) {
+                //house for player 1
+                houseImg = $("<img src='images/red_house.png'/>").attr("id", "red_house");
+                //house for player 2
+                if (player == player2) {
+                    houseImg = $("<img src='images/blue_house.png'/>").attr("id", "blue_house")
+                }
+                button = $("#" + cards_bought[i]);
+                cardBody = button.parent();
+                card = cardBody.parent();
+                $h5 = card.clone().children("h5");
+                $p_name = cardBody.clone().children("p");
+                color = $h5.css("background-color");
+                price = parseInt(button.text().slice(0, -1));
+                $p_name.css("background-color", color);
+                player.purchases = [];//what we get form the local storge is not good.
+                player.purchases.push($p_name); // add all the purchases
+                $("#" + player.name + "Score").append(player.purchases)
+                $(card).append(houseImg)
+            }
+        }
+        function goToJail(player, playerDiv) {
+            player.timeJail++;
+            $("#6").append(playerDiv);
+            player.location = 6;
+        }
+        function payForVisit(jsonPlayer, otherPlayer) {
+            //otherPlayerCards = the cards that the second player bought
+
+            //the current button of the current card game
+            thisButton = ($('#' + current).find("button"));
+            priceOfCard = parseInt(thisButton.text().slice(0, -1));
+            priceOfCard = parseFloat((priceOfCard * 0.1).toFixed(1)); //need only to pay 0.1 of the total price
+            jsonPlayer.money -= priceOfCard; // update the current player money
+            jsonPlayer.worth -= priceOfCard; // update the current player worth
+            otherPlayer.money += priceOfCard;// update the other player money
+            otherPlayer.worth += priceOfCard;// update the other player worth
+            $("#money" + jsonPlayer.name).html(jsonPlayer.money + "$");
+            $("#worth" + jsonPlayer.name).html("worth: " + jsonPlayer.worth + "$");
+            $("#money" + otherPlayer.name).html(otherPlayer.money + "$");
+            $("#worth" + otherPlayer.name).html("worth: " + otherPlayer.worth + "$");
+            showSnackbar(jsonPlayer.userName + " paid " + priceOfCard + "$ rent to " + otherPlayer.userName);
+        }
+        function GoToRules() {
+            window.open("RulesGame.html");
+        }
+    </script>
+    
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row" id="choosePlatform" hidden="hidden">
+            <div class="col">
+                <div>
+                    <h1 class="title"><img src="images/rich-uncle-pennybags.png" />Please Choose a Platform to play!</h1>
+
+                    <button id="steamButton" class="btn btn-primary btn-rounded btn-lg">
+                        Steam Monopoly
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/1024px-Steam_icon_logo.svg.png" />
+                    </button>
+
+                    <button id="mcdonaldButton" class="btn btn-warning btn-rounded btn-lg">
+                        McDonald's Monopoly
+                        <img src="https://img.icons8.com/color/48/000000/mcdonalds-french-fries.png" />
+                    </button>
+                    <br />
+                    <br />
+                    <br />
+                    <button id="rulesButton" class="btn btn-danger btn-rounded btn-lg" onclick="GoToRules()">
+                        Click here for the rules of the game
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="row" id="hideBeforePlatform" hidden="hidden">
+            <div class="col">
+                <h1 class="title"><img src="https://media1.giphy.com/media/24nGRdMr7V5eBCMlql/source.gif" />Choose Players Name And Amount of Cash To Start!!</h1>
+                <input type="text" value="Player1" onfocus="this.value=''" id="player1_name" />
+                <input type="text" value="Player2" onfocus="this.value=''" id="player2_name" /><br /><br />
+                <input type="number" id="inputCash" min="100" value="100"/>
+
+                <button id="start" class="btn btn-danger btn-rounded">Go!</button>
+            </div>
+        </div>
+        <div id="hideBoforeStart" hidden="hidden">
+            <div class="row">
+                <div class="col-4" id="scoreboard">
+                </div>
+                <div class="col-8" id="gameboard">
+                    <div class="row" id="top">
+                    </div>
+                    <div class="row" id="main">
+                        <div class="col-2" id="left">
+                        </div>
+                        <div class="col-8" id="center">
+                            <div class="row">
+                                <div class="col" id="cubes">
+                                    <table id="tabelCubes">
+                                        <tr>
+                                            <td id="c1"></td> <!--cube 1-->
+                                            <td id="c2"></td> <!--cube 2-->
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2" id="turns"></td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-2" id="right">
+                        </div>
+                    </div>
+                    <div class="row" id="bottom">
+                   
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <div id="end_game" hidden="hidden" class="row"></div>
+    </div>
+</body>
+</html>
